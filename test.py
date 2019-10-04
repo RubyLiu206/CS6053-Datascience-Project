@@ -14,15 +14,36 @@ def data_cleaning(dataframe):
     dataframe = dataframe.dropna()
 
 
-#def time_series(dataframe):
-    # implement the ARIMA
+
+
+
+"""
+data preprocessing:
+    deal with the raw data 
+    deal with the NaN data
+"""
+    
+def cleaning_dataframe(row):
+    try:
+        return float(row)
+    except:
+        return np.NaN
+    
+    
+    
+"""
+data preprocessing:
+    create a new dataset with the datetime
+    choosing the rows which need for the table
+    
+
+"""
 def preprocess_temperature(NASA_temperature):
     # using a datatime index
     #basic manipulation and dealing with missing values
     #resampling to a diffeent frequency
-    
     range_date = pd.date_range(start = '1/1/1880', end = '1/03/2019', freq = 'M')
-    print(type(range_date))
+    #print(type(range_date))
     table = pd.DataFrame(range_date, columns = ['date'])
     table['average_temperature_monthly'] = None
     table.set_index('date', inplace = True)
@@ -31,6 +52,31 @@ def preprocess_temperature(NASA_temperature):
     return NASA_temperature, table    
 
 
+def preprocess_CO2(CO2_emission):
+    range_date = pd.date_range(start = '31/12/1960', end = '31/12/2018', freq = 'Y')
+    #print(type(range_date))
+    table_CO2 = pd.DataFrame(range_date, columns = ['date'])
+    #print(table_CO2.index)
+    
+    CO2_emission = CO2_emission[CO2_emission['Country Name']=='World'].loc[:,'1960':'2018']
+    CO2_emission = CO2_emission.T
+    CO2_emission.columns = ['value']
+    
+    #print(table_CO2)
+    return CO2_emission, table_CO2
+
+
+"""
+populate dataset:
+    translating the dataset from raw data to the datetime dataset
+    lambda function 
+
+"""
+
+def populate_CO2(row, CO2_emission):
+    index = str(row['date'].year)
+    value= CO2_emission.loc[index]
+    return value
 
 
 def populate_df_with_anomolies_from_row(row,table):
@@ -48,22 +94,57 @@ def populate_df_with_anomolies_from_row(row,table):
         date_index = datetime.strptime(f'{year} {month} {last_day}', '%Y %b %d')
         # put the value in row to the table loc index
         table.loc[date_index] = monthly_anomolies[month]
-        
-        
-def cleaning_dataframe(row):
-    try:
-        return float(row)
-    except:
-        return np.NaN
-       
+      
+   
+
+
 def correlation(GlobalTemperatures):
     corr = GlobalTemperatures.LandAverageTemperature.corr(GlobalTemperatures['LandAndOceanAverageTemperature'])
     return corr
 
 
+"""
+plot function
+    normal plot
+    resampling plot
+"""
 
 
+def plot_temperature(table):
+    plt.figure(figsize = (20,8))
+    plt.xlabel('Time')
+    plt.ylabel('Temperature at the specified time')
+    plt.plot(table, color = 'blue', linewidth = 1.0)
 
+# Resampling or converting a time series to a particular frequency
+def resample_plot_temperature(table):
+    table = table.resample('A').mean()
+    #print(table)
+    plt.figure(figsize = (20,8))
+    plt.xlabel('Time')
+    plt.ylabel('Temperature at the specified time')
+    plt.plot(table, color = 'blue', linewidth = 1.0)
+
+def plot_CO2(table):
+    plt.figure(figsize = (20,8))
+    plt.xlabel('Time')
+    plt.ylabel('co2 emission at the specified time')
+    plt.plot(table, color = 'blue', linewidth = 1.0)
+
+# Resampling or converting a time series to a particular frequency
+def resample_plot_CO2(table):
+    table = table.resample('A').mean()
+    print(table)
+    plt.figure(figsize = (20,8))
+    plt.xlabel('Time')
+    plt.ylabel('co2 emission at the specified time')
+    plt.plot(table, color = 'blue', linewidth = 1.0)
+    
+    
+    
+"""
+main 
+"""
 def main():
     # data from GlobalTemperatures have: date, LandAverageTemperature, LandAverageTemperatureUncertainty
     # LandMaxTemperature, LandMaxTemperatureUncertainty, LandMinTemperature, LandMinTemperatureUncertainty
@@ -91,24 +172,26 @@ def main():
     # data preprocessing
     NASA_temperature, table = preprocess_temperature(NASA_temperature)
     _ = NASA_temperature.apply(lambda row: populate_df_with_anomolies_from_row(row,table), axis=1)
-    print(table)
+    #print(table)
     
     table['average_temperature_monthly'] = table['average_temperature_monthly'].apply(lambda row: cleaning_dataframe(row))
     table.fillna(method='ffill', inplace=True)
-
-
-    plt.figure(figsize = (20,8))
-    plt.xlabel('Time')
-    plt.ylabel('Temperature at the specified time')
-    plt.plot(table, color = 'blue', linewidth = 1.0)
+    plot_temperature(table)
+    resample_plot_temperature(table)
+    
     
     # CO2 emission from world bank
     
     CO2_emission = pd.read_csv('data/API_EN.ATM.CO2E.PC_DS2_en_csv_v2_248248.csv', skiprows=3)
     CO2_emission.head()
- 
-    
-    
+    CO2_emission, table_CO2 = preprocess_CO2(CO2_emission)
+    v = table_CO2.apply(lambda row: populate_CO2(row, CO2_emission), axis=1)
+    table_CO2['Global CO2 Emissions per Capita'] = v
+    table_CO2.set_index('date',inplace = True)
+    table_CO2.fillna(method='ffill', inplace=True)
+
+    plot_CO2(table_CO2)
+    resample_plot_CO2(table_CO2)
 """
     GlobalTemperatures_Country = pd.read_csv("GlobalLandTemperaturesByCountry.csv")
     print(type(GlobalTemperatures_Country))
