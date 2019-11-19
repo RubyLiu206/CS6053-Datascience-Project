@@ -1,0 +1,9 @@
+thing need to mention in milestone
+
+1. what dataset we use, and the target for each dataset
+
+2. how we preprocessing the dataset
+
+3. for now, what result and plot we can use for now
+
+
